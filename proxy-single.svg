@@ -333,21 +333,53 @@
       }
     });
 
-    const goto = new URL(location.href).searchParams.get("goto");
-    if (goto) {
-      history.replaceState(null, "", location.pathname);
-      address.value = goto;
-      registerSW()
-        .then(() => {
-          if (!navigator.serviceWorker.controller) {
-            return new Promise((resolve) =>
-              navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true })
-            );
-          }
-        })
-        .then(() => navigate(goto))
-        .catch((err) => showErrorScreen(err.message, err.stack));
+    function getAutoLoadUrl() {
+  try {
+    const u = new URL(location.href);
+    const p = u.searchParams.get("autoload") || u.searchParams.get("goto");
+    if (p) return p;
+  } catch (e) {}
+  const h = window.location.href;
+  if (h.includes("autoload=")) {
+    const raw = h.split("autoload=")[1].split("&")[0];
+    try {
+      return decodeURIComponent(raw);
+    } catch (e) {
+      return raw;
     }
+  }
+  if (h.includes("goto=")) {
+    const raw = h.split("goto=")[1].split("&")[0];
+    try {
+      return decodeURIComponent(raw);
+    } catch (e) {
+      return raw;
+    }
+  }
+  return null;
+}
+
+const autoUrl = getAutoLoadUrl();
+if (autoUrl) {
+  try {
+    history.replaceState(null, "", location.pathname);
+  } catch (e) {}
+  const resolved = search(autoUrl, searchEngine.value);
+  address.value = resolved;
+  if (username && !username.value) {
+    username.value = "Auto";
+  }
+  registerSW()
+    .then(() => {
+      if (!navigator.serviceWorker.controller) {
+        return new Promise((resolve) =>
+          navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true })
+        );
+      }
+    })
+    .then(() => navigate(resolved))
+    .catch((err) => showErrorScreen(err.message, err.stack));
+}
   //]]></script>
 </body>
 </html>
